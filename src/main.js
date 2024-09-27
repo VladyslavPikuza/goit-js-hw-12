@@ -15,23 +15,28 @@ const lightbox = new SimpleLightbox('.gallery a', {
   close: true,
 });
 
+
+let currentPage = 1;
+let currentQuery = '';
+
+
 searchForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const query = event.target.elements.searchQuery.value.trim();
-
-  
-  clearGallery();
 
   if (query === '') {
     iziToast.error({ title: 'Error', message: 'Please enter a search query' });
     return;
   }
 
-  loader.style.display = 'block'; 
+  loader.style.display = 'block';
+  currentPage = 1;
+  currentQuery = query;
+  clearGallery(); 
 
   try {
-    const images = await fetchImages(query);
+    const images = await fetchImages(query, currentPage);
 
     if (images.length === 0) {
       iziToast.error({ title: 'No results', message: 'No images found for your search query' });
@@ -39,12 +44,32 @@ searchForm.addEventListener('submit', async (event) => {
     }
 
     renderGallery(images);
-
-   
     lightbox.refresh();
+    loadMoreBtn.style.display = 'block'; 
+  } catch (error) {
+    iziToast.error({ title: 'Error', message: 'Failed to fetch images' });
+  } finally {
+    loader.style.display = 'none';
+  }
+});
+
+const loadMoreBtn = document.querySelector('#load-more-btn');
+
+loadMoreBtn.addEventListener('click', async () => {
+  currentPage += 1;
+  loader.style.display = 'block'; 
+
+  try {
+    const images = await fetchImages(currentQuery, currentPage);
+    renderGallery(images);
+    lightbox.refresh(); 
   } catch (error) {
     iziToast.error({ title: 'Error', message: 'Failed to fetch images' });
   } finally {
     loader.style.display = 'none'; 
   }
 });
+
+
+
+
