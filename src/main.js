@@ -7,7 +7,7 @@ import 'izitoast/dist/css/iziToast.min.css';
 
 const searchForm = document.querySelector('#search-form');
 const loader = document.querySelector('#loader');
-
+const loadMoreBtn = document.querySelector('#load-more-btn');
 
 const lightbox = new SimpleLightbox('.gallery a', {
   captionsData: 'alt',
@@ -15,10 +15,10 @@ const lightbox = new SimpleLightbox('.gallery a', {
   close: true,
 });
 
-
 let currentPage = 1;
 let currentQuery = '';
-
+let totalHits = 0;
+let totalImages = 0;
 
 searchForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -33,19 +33,23 @@ searchForm.addEventListener('submit', async (event) => {
   loader.style.display = 'block';
   currentPage = 1;
   currentQuery = query;
-  clearGallery(); 
+  clearGallery();
 
   try {
-    const images = await fetchImages(query, currentPage);
+    const { images, totalHits: fetchedTotalHits } = await fetchImages(query, currentPage);
+    totalHits = fetchedTotalHits;
+    totalImages = images.length;
 
-    if (images.length === 0) {
+    if (totalImages === 0) {
       iziToast.error({ title: 'No results', message: 'No images found for your search query' });
+      loadMoreBtn.style.display = 'none';
       return;
     }
 
     renderGallery(images);
     lightbox.refresh();
-    loadMoreBtn.style.display = 'block'; 
+    loadMoreBtn.style.display = totalHits > 15 ? 'block' : 'none'; 
+
   } catch (error) {
     iziToast.error({ title: 'Error', message: 'Failed to fetch images' });
   } finally {
@@ -53,23 +57,44 @@ searchForm.addEventListener('submit', async (event) => {
   }
 });
 
-const loadMoreBtn = document.querySelector('#load-more-btn');
-
 loadMoreBtn.addEventListener('click', async () => {
   currentPage += 1;
-  loader.style.display = 'block'; 
+  loader.style.display = 'block';
 
   try {
-    const images = await fetchImages(currentQuery, currentPage);
+    const { images, totalHits: fetchedTotalHits } = await fetchImages(currentQuery, currentPage);
+    totalHits = fetchedTotalHits;
+    totalImages += images.length;
+
+    if (images.length === 0 || totalImages >= totalHits) {
+      iziToast.info({ title: 'End of results', message: "We're sorry, but you've reached the end of search results." });
+      loadMoreBtn.style.display = 'none';
+      return;
+    }
+
     renderGallery(images);
-    lightbox.refresh(); 
+    lightbox.refresh();
+    scrollToNextImages();
+
   } catch (error) {
     iziToast.error({ title: 'Error', message: 'Failed to fetch images' });
   } finally {
-    loader.style.display = 'none'; 
+    loader.style.display = 'none';
   }
 });
 
+function scrollToNextImages() {
+  
+  const firstPhotoCard = document.querySelector('.photo-card');
+  
+  if (firstPhotoCard) {
+    const { height } = firstPhotoCard.getBoundingClientRect();
+    const scrollAmount = height * 4; 
 
-
+    window.scrollBy({
+      top: scrollAmount,
+      behavior: 'smooth' 
+    });
+  }
+}
 
