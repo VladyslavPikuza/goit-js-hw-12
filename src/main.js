@@ -9,16 +9,16 @@ const searchForm = document.querySelector('#search-form');
 const loader = document.querySelector('#loader');
 const loadMoreBtn = document.querySelector('#load-more-btn');
 
+let currentPage = 1;
+let currentQuery = '';
+let totalHits = 0; 
+let currentHits = 0; 
+
 const lightbox = new SimpleLightbox('.gallery a', {
   captionsData: 'alt',
   captionDelay: 250,
   close: true,
 });
-
-let currentPage = 1;
-let currentQuery = '';
-let totalHits = 0;
-let totalImages = 0;
 
 searchForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -34,22 +34,27 @@ searchForm.addEventListener('submit', async (event) => {
   currentPage = 1;
   currentQuery = query;
   clearGallery();
+  loadMoreBtn.style.display = 'none'; 
+  currentHits = 0; 
 
   try {
-    const { images, totalHits: fetchedTotalHits } = await fetchImages(query, currentPage);
-    totalHits = fetchedTotalHits;
-    totalImages = images.length;
+    const { images, totalHits: total } = await fetchImages(query, currentPage);
+    totalHits = total; 
 
-    if (totalImages === 0) {
+    if (images.length === 0) {
       iziToast.error({ title: 'No results', message: 'No images found for your search query' });
-      loadMoreBtn.style.display = 'none';
       return;
     }
 
     renderGallery(images);
     lightbox.refresh();
-    loadMoreBtn.style.display = totalHits > 15 ? 'block' : 'none'; 
+    currentHits += images.length;
 
+    if (currentHits < totalHits) {
+      loadMoreBtn.style.display = 'block';
+    } else {
+      iziToast.info({ title: 'End of results', message: "We're sorry, but you've reached the end of search results." });
+    }
   } catch (error) {
     iziToast.error({ title: 'Error', message: 'Failed to fetch images' });
   } finally {
@@ -62,20 +67,17 @@ loadMoreBtn.addEventListener('click', async () => {
   loader.style.display = 'block';
 
   try {
-    const { images, totalHits: fetchedTotalHits } = await fetchImages(currentQuery, currentPage);
-    totalHits = fetchedTotalHits;
-    totalImages += images.length;
-
-    if (images.length === 0 || totalImages >= totalHits) {
-      iziToast.info({ title: 'End of results', message: "We're sorry, but you've reached the end of search results." });
-      loadMoreBtn.style.display = 'none';
-      return;
-    }
-
+    const { images } = await fetchImages(currentQuery, currentPage);
     renderGallery(images);
     lightbox.refresh();
-    scrollToNextImages();
+    currentHits += images.length;
 
+    if (currentHits >= totalHits) {
+      iziToast.info({ title: 'End of results', message: "We're sorry, but you've reached the end of search results." });
+      loadMoreBtn.style.display = 'none';
+    } else {
+      scrollToNextImages(); 
+    }
   } catch (error) {
     iziToast.error({ title: 'Error', message: 'Failed to fetch images' });
   } finally {
@@ -85,16 +87,15 @@ loadMoreBtn.addEventListener('click', async () => {
 
 function scrollToNextImages() {
   
-  const firstPhotoCard = document.querySelector('.photo-card');
-  
-  if (firstPhotoCard) {
-    const { height } = firstPhotoCard.getBoundingClientRect();
-    const scrollAmount = height * 4; 
-
-    window.scrollBy({
-      top: scrollAmount,
-      behavior: 'smooth' 
-    });
-  }
+  setTimeout(() => {
+    const firstPhotoCard = document.querySelector('.photo-card');
+    if (firstPhotoCard) {
+      const { height } = firstPhotoCard.getBoundingClientRect();
+      const scrollAmount = height * 4; 
+      window.scrollBy({
+        top: scrollAmount,
+        behavior: 'smooth' 
+      });
+    }
+  }, 100); 
 }
-
